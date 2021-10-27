@@ -1,4 +1,6 @@
 results
+*png
 *.csv
 *.png
 *.pth
+pth
