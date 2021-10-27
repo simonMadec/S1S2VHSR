@@ -65,13 +65,13 @@ class Model_SPOT(nn.Module):
         self.spot_encoder = SpotEncoder(n_filters=128,drop=drop)
         self.dense1 = nn.Linear(in_features = n_filters*2, out_features = num_units) 
         self.dense2 = nn.Linear(in_features = num_units, out_features = n_classes) 
-        self.softmax = torch.nn.Softmax(dim=1)
+        #self.softmax = torch.nn.Softmax(dim=1)
 
     def forward(self,x_pan,x_ms):
         x = self.spot_encoder(x_pan,x_ms) # rajouter is_training ici ?  #todo
         x = self.dense1(x)
         x = self.dense2(x)
-        x = self.softmax(x)
+        #x = self.softmax(x)
         return x
     
     def predict(self,x_pan,x_ms):
