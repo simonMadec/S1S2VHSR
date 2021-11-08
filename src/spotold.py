@@ -47,21 +47,15 @@ class SpotEncoder(nn.Module): #spot
         self.block4 = Conv2DBlock(in_channels=n_filters*2,out_channels=n_filters*2,kernel_size=3,dropout=drop)
         self.block5 = Conv2DBlock(in_channels=n_filters*2,out_channels=n_filters*2,kernel_size=1,dropout=drop)
         self.avg = nn.AvgPool2d(1)
-        self.act = nn.ReLU()
         
     def forward(self,input_pan,input_ms):
         x=self.block1(input_pan)
-        x = self.act(x)
         x=self.block2(x) # debug kaaviya activation - where to add relu
-        x = self.act(x)
         x = torch.cat((x, input_ms), 1) # 256 256 8  8 # todo c'est ok de pas le mettre dans self ? 
         x = F.pad(x, (0, 2, 2, 0)) # 256 256 10 10
         x=self.block3(x) # 256 256 3 3
-        x = self.act(x)
         x=self.block4(x) # 256 256 1 1
-        x = self.act(x)
         x=self.block5(x) # 256 256 1 1
-        x = self.act(x)
         x=self.avg(x)
         return torch.squeeze(x)
 

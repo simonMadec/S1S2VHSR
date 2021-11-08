@@ -4,13 +4,13 @@ from src.spot import Model_SPOT # import the model
 from src.util_train import train
 import os 
 
-os.environ["CUDA_VISIBLE_DEVICES"] ="0"
+os.environ["CUDA_VISIBLE_DEVICES"] ="1"
 
 site = "data_reunion"
 site = "data_dordogne" # attention changer le nombre de classes et test -1 dans validate all
 
 
-for rep in range(0,3):
+for rep in range(3,5):
     for split in range(0,5):
 
         path_Y_train = f"/mnt/DATA/JE/{site}/Ground_truth/Training/Ground_truth_Training_split_{split}.npy"
@@ -34,4 +34,4 @@ for rep in range(0,3):
         test_dataset = DatasetSpot(x_pan_numpy_dir=path_X_test_pan,x_ms_numpy_dir=path_X_test_ms,y_numpy_dir=path_Y_test)
         test_loader = DataLoader(test_dataset, batch_size=256, shuffle=True,pin_memory=False, num_workers=10)
 
-        train(Model_SPOT(n_classes=7),train_loader,valid_loader,test_loader,num_epochs=200,csv_name=f"Spot_withrelu_site-{site}_rep-{rep}_result_split-{split}.csv",model_file=f"model_split-{split}.pth")
+        train(Model_SPOT(n_classes=7),train_loader,valid_loader,test_loader,num_epochs=200,csv_name=f"Spot-withrelu_site-{site}_rep-{rep}_result_split-{split}.csv",model_file=f"model_split-{split}.pth")

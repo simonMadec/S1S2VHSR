@@ -56,7 +56,8 @@ def validateALL(net, loader,test=True):
     return np.mean(np.asarray(acc)),np.mean(np.asarray(ka)),np.mean(np.asarray(f1))
 
 
-def validate(net, loader):
+def validate(net, loader,perclasse_acc = False,list_class=['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', \
+            'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil','Relief shadow','Water','Urbanized areas']):
     #compute just accuracy
     y_pred = []
     y_true = []
@@ -64,6 +65,8 @@ def validate(net, loader):
     net.eval()
     with torch.no_grad():
         acc = []
+        acc_classe = {k:[] for k in list_class}
+
         for i, sample in enumerate(loader):
 
             if len(sample)==2:
@@ -77,12 +80,26 @@ def validate(net, loader):
                 PAN, MS, Target = PAN.cuda(), MS.cuda(), Target.cuda() 
                 outputs_is = net(PAN, MS)
 
-
             correct_pred = (outputs_is.argmax(-1) == Target).float()
+
+            if perclasse_acc == True:
+                Target =Target.float().cpu().numpy()
+                Pred = outputs_is.argmax(-1).float().cpu().numpy()
+
+                for i,classe in enumerate(np.unique(Target)):
+                    acc_classe[list_class[i]].append(np.sum((Pred== Target) & (Target == classe)) / np.sum(Target == classe))
+
             val = correct_pred.sum() / len(correct_pred)
             acc.append(val.cpu().numpy())
              #faire une accuracy
-    return np.mean(np.asarray(acc))
+
+    if perclasse_acc == True:
+        for key, value in acc_classe.items():
+            acc_classe[key]= int(np.mean(value)*100)
+        
+        return np.mean(np.asarray(acc)), acc_classe
+    else: 
+         return np.mean(np.asarray(acc)), None
 
 
 def train(net,train_loader, valid_loader,test_loader, num_epochs=50,csv_name=f"result.csv",model_file="model-split"):
@@ -94,8 +111,12 @@ def train(net,train_loader, valid_loader,test_loader, num_epochs=50,csv_name=f"r
     count=0
 
     df = pd.DataFrame(columns=['epoch', 'train_acc', 'val_acc','time'])
+    df_train_classe= pd.DataFrame(columns=['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', \
+        'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil','Relief shadow','Water','Urbanized areas']) # to put at default prameter value
+    df_valid_classe= pd.DataFrame(columns=['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', \
+        'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil','Relief shadow','Water','Urbanized areas'])
 
-    with tqdm(range(num_epochs), unit="epoch",leave=False) as tqdmEpoch:
+    with tqdm(range(num_epochs), unit="epoch",leave=True) as tqdmEpoch:
         for e in tqdmEpoch:
 
             for i, sample in enumerate(train_loader):
@@ -122,14 +143,16 @@ def train(net,train_loader, valid_loader,test_loader, num_epochs=50,csv_name=f"r
                 
             end = time()
 
-            val_acc = validate(net, valid_loader)
-            train_acc = validate(net, train_loader)
-            if val_acc > best_acc: # minimum 5 epoch to save best model..
-                print("saving models .. ")
+            val_acc, val_acc_classe = validate(net, valid_loader,perclasse_acc=False)
+            train_acc, train_acc_classe = validate(net, train_loader,perclasse_acc=False)
+            if val_acc > best_acc: # minimum 1 epoch to save best model.. do it with val loss #todo
+                
                 best_acc = val_acc
-                torch.save(net.state_dict(), model_file)
-                # compute accuracy ..
-                test_acc,test_kaa,test_f1 = validateALL(net, test_loader)
+                if e > 0:
+                    print("saving models .. ")
+                    # compute accuracy and save models
+                    torch.save(net.state_dict(), model_file)
+                    test_acc,test_kaa,test_f1 = validateALL(net, test_loader,test=False)
                 count=0
             else:
                 #for early stopping
@@ -140,16 +163,23 @@ def train(net,train_loader, valid_loader,test_loader, num_epochs=50,csv_name=f"r
             new_row = {"epoch":e+1, "train_acc":train_acc, "val_acc":val_acc, "time (s)":end - start}
             df = df.append(new_row, ignore_index=True)
 
+            df_train_classe = df_train_classe.append(train_acc_classe, ignore_index=True)
+            df_valid_classe = df_valid_classe.append(val_acc_classe, ignore_index=True)
+
             if not e % 10:
                 df.to_csv(path_or_buf=csv_name,index=False)
 
-            tqdmEpoch.set_description(f"[{e+1:d}/{num_epochs:d}] Loss: {loss:.3f}  Train Acc: {train_acc:.3f}  Val Acc: {val_acc:.3f}", refresh=False)
+            tqdmEpoch.write(f"[{e+1:d}/{num_epochs:d}] Loss: {loss:.3f}  Train Acc: {train_acc:.3f}  Val Acc: {val_acc:.3f}")
+            #tqdmEpoch.write(f"train_acc_classe :  {train_acc_classe}")
+            tqdmEpoch.write(f"val_acc_classe :  {val_acc_classe}")
+            tqdmEpoch.update(1)
 
     
     df.to_csv(path_or_buf=csv_name,index=False)
+    df_train_classe.to_csv(path_or_buf="perClasse-train_" + csv_name,index=False)
+    df_valid_classe.to_csv(path_or_buf="perClasse-valid_" + csv_name,index=False)
 
     df2 = pd.DataFrame(columns=["test_acc", "test_kaa", "test_f1"])
     new_row = {"test_acc":test_acc, "test_kaa":test_kaa, "test_f1":test_f1}
-
     df2 = df2.append(new_row, ignore_index=True)
     df2.to_csv(path_or_buf="test_" + csv_name,index=False)

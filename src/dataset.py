@@ -20,22 +20,24 @@ class DatasetSpot(BaseDataset):
             classes=None, #todo
 
     ):
+    
         self.classes = classes
-
         self.Y_train = np.load(y_numpy_dir)
         self.size=len(self.Y_train)
         self.X_train_pan = np.load(x_pan_numpy_dir)
-        self.X_train_ms = np.load(x_ms_numpy_dir)
 
+        self.X_train_ms = np.load(x_ms_numpy_dir) #todo should i do the reshape here ? 
 
-        
     def __getitem__(self, i):
-        return self.X_train_pan[i,:,:,0].reshape([1,32,32]).astype("float32"), \
-            self.X_train_ms[i,:,:,:,0].reshape([4,8,8]).astype("float32"), self.Y_train[i,1]-1
+        if self.X_train_ms.shape[3]==4:
+            return self.X_train_pan[i,:,:,0].reshape([1,32,32]).astype("float32"), \
+                self.X_train_ms[i,:,:,:,0].reshape([4,8,8]).astype("float32"), self.Y_train[i,1]-1
+        else:
+            return self.X_train_pan[i,:,:,0].reshape([1,32,32]).astype("float32"), \
+                self.X_train_ms[i,:,:,0,:].reshape([4,8,8]).astype("float32"), self.Y_train[i,1]-1
 
     def __len__(self):
         return self.size
-
 
 
 class DatasetS2(BaseDataset):
@@ -56,10 +58,10 @@ class DatasetS2(BaseDataset):
         self.size=len(self.Y_train)
         self.X_train_S2 = np.load(x_S2_numpy_dir)
         
-        
     def __getitem__(self, i):
         center = int(self.X_train_S2.shape[1]/2)
-        return self.X_train_S2[i,center,center,:,:].reshape([6,21]).astype("float32"), self.Y_train[i,1]-1
+        return self.X_train_S2[i,center,center,:,:].reshape([6,self.X_train_S2.shape[3]]).astype("float32"), self.Y_train[i,1]-1
 
     def __len__(self):
         return self.size
+
