@@ -23,7 +23,6 @@ for cs in csv:
     breakpoint()
         
 
-
 pathCSV = "results/S2"
 
 for i in glob.glob( pathCSV + "/result*" ):

@@ -6,62 +6,70 @@ import logging
 from torch.utils.data import Dataset as BaseDataset
 import numpy as np
 loggerupds = logging.getLogger('update')
+from pathlib import Path
 
-class DatasetSpot(BaseDataset):
+class DatasetS1S2VHSR(BaseDataset):
     """Read numpy
     .. can be used for augmentation ..
     """
     def __init__(
             self,
-            x_pan_numpy_dir,
-            x_ms_numpy_dir,
-            y_numpy_dir,
-            # we can add the authors sources of information here
-            classes=None, #todo
-
+            root: str,
+            dataset: str,
+            sensor: list, #todo
+            split=0,
     ):
-    
-        self.classes = classes
-        self.Y_train = np.load(y_numpy_dir)
-        self.size=len(self.Y_train)
-        self.X_train_pan = np.load(x_pan_numpy_dir)
-
-        self.X_train_ms = np.load(x_ms_numpy_dir) #todo should i do the reshape here ? 
-
-    def __getitem__(self, i):
-        if self.X_train_ms.shape[3]==4:
-            return self.X_train_pan[i,:,:,0].reshape([1,32,32]).astype("float32"), \
-                self.X_train_ms[i,:,:,:,0].reshape([4,8,8]).astype("float32"), self.Y_train[i,1]-1
-        else:
-            return self.X_train_pan[i,:,:,0].reshape([1,32,32]).astype("float32"), \
-                self.X_train_ms[i,:,:,0,:].reshape([4,8,8]).astype("float32"), self.Y_train[i,1]-1
-
-    def __len__(self):
-        return self.size
-
-
-class DatasetS2(BaseDataset):
-    """Read numpy
-    .. can be used for augmentation ..
-    """
-    def __init__(
-            self,
-            x_S2_numpy_dir,
-            y_numpy_dir,
-            # we can add the authors sources of information here
-            classes=None, #todo
-
-    ):
-        self.classes = classes
-
-        self.Y_train = np.load(y_numpy_dir)
-        self.size=len(self.Y_train)
-        self.X_train_S2 = np.load(x_S2_numpy_dir)
+        if dataset not in ["Training","Validation","Test"]:
+            print(f"Error training should be Training Validation Test not {dataset}")
+            breakpoint()
+        if len([item for item in sensor if item not in ["Spot","S2","S1"]])>0:
+            print(f"Wrong sensor elements {sensor}")
+            breakpoint()
         
+        y_numpy_dir = Path(root) / "Ground_truth" / dataset /  f"Ground_truth_{dataset}_split_{split}.npy"
+        self.Y_train = np.load(y_numpy_dir)
+        self.size = self.Y_train.shape[0]
+        self.sensor = sensor
+        self.num_target = len(np.unique(self.Y_train[:,1]))
+
+        if "S2" in sensor:
+            X_train_S2 = np.load(Path(root) / "Sentinel-2" / dataset /  f"Sentinel-2_{dataset}_split_{split}.npy")
+            center = int(X_train_S2.shape[1]/2)
+            self.X_train_S2 = X_train_S2[:,center,center,:,:].transpose(2,1,0)
+
+        if "S1" in sensor:
+            X_train_S1 = np.load(Path(root) / "Sentinel-1" / dataset /  f"Sentinel-1_{dataset}_split_{split}.npy")
+            self.X_train_S1 = X_train_S1.reshape(X_train_S1.shape[0],X_train_S1.shape[1],X_train_S1.shape[2],-1).transpose(0,3,1,2)
+
+        if "Spot" in sensor:
+            X_train_pan = np.load(Path(root) / "Spot-P" / dataset /  f"Spot-P_{dataset}_split_{split}.npy")
+            self.X_train_pan = X_train_pan[:,:,:,0].transpose(0,3,1,2)
+            X_train_ms = np.load(Path(root) / "Spot-MS" / dataset /  f"Spot-MS_{dataset}_split_{split}.npy")
+            if X_train_ms.shape[3]==4:
+                self.X_train_ms = X_train_ms[:,:,:,:,0].transpose(0,3,1,2)
+            else:
+                self.X_train_ms = X_train_ms[:,:,:,0,:].transpose(0,3,1,2)
     def __getitem__(self, i):
-        center = int(self.X_train_S2.shape[1]/2)
-        return self.X_train_S2[i,center,center,:,:].reshape([6,self.X_train_S2.shape[3]]).astype("float32"), self.Y_train[i,1]-1
+        
+        dicts = {}
+        dicts["Target"] = torch.as_tensor(np.array(self.Y_train[i,1]).astype('float32'))
+        # dicts["Target"] = torch.from_numpy(self.Y_train[i,1])
+        for x in self.sensor:
+            if x == "S1":
+                # dicts[x] = torch.from_numpy(self.X_train_S1[i,:,:])
+                dicts[x] = torch.as_tensor(np.array(self.X_train_S1[i,:,:]).astype('float32'))
+            elif x == "S2":
+                # dicts[x] = torch.from_numpy(self.X_train_S2[:,:,i]) 
+                dicts[x] = torch.as_tensor(np.array(self.X_train_S2[:,:,i]).astype('float32'))
+            elif x == "Spot":
+                # dicts["PAN"] = torch.from_numpy(self.X_train_pan[i,:,:])
+                dicts["PAN"] = torch.as_tensor(np.array(self.X_train_pan[i,:,:]).astype('float32'))
+                # dicts["MS"] = torch.from_numpy(self.X_train_ms[i,:,:])
+                dicts["MS"] = torch.as_tensor(np.array(self.X_train_ms[i,:,:]).astype('float32'))
+        return dicts
 
     def __len__(self):
         return self.size
 
+    def numtarget(self):
+        return self.num_target
