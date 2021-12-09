@@ -27,8 +27,8 @@ def merge_csv(csv_name):
         print("some csv are missing")
         breakpoint()
 
-# site = "data_reunion"
-# method = "debugEpsilon-lrdecrease"
+# site = "data_dordone"
+# method = "0612"
 # split=0
 # for sensor in ["S1"]:
 

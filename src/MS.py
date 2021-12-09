@@ -118,24 +118,50 @@ class Model_MultiSource(nn.Module):
         super().__init__()
         self.branch = branch
         if "Spot" in branch:
-            self.encoder = SpotEncoder(n_filters=n_filters,drop=drop)
-        elif "S1" in branch:
-            self.encoder = CNN2D_Encoder(n_filters = n_filters, drop = drop)
-        elif "S2" in branch:
-            self.encoder = CNN1D_Encoder(n_filters = n_filters, drop = drop)
-        if len(branch)>2:
-            print("no yet implemented")
+            self.spot_encoder = SpotEncoder(n_filters=n_filters,drop=drop)
+        if "S1" in branch:
+            self.s1_encoder = CNN2D_Encoder(n_filters = n_filters, drop = drop)
+        if "S2" in branch:
+            self.s2_encoder = CNN1D_Encoder(n_filters = n_filters, drop = drop)
+
+        if len(branch)>1:
+            print("Carefull fusion is on development")
 
         self.dense1 = nn.Linear(in_features = n_filters*2, out_features = num_units) 
         self.dense2 = nn.Linear(in_features = num_units, out_features = n_classes) 
 
     def forward(self,x_in):
-        if "Spot" in self.branch:
-            x = self.encoder(x_in["PAN"],x_in["MS"])
-        if "S1" in self.branch:
-            x = self.encoder(x_in["S1"])
-        if "S2" in self.branch:
-            x = self.encoder(x_in["S2"])
+        if len(self.branch)==1:
+            if "Spot" in self.branch:
+                x = self.spot_encoder(x_in["PAN"],x_in["MS"])
+            elif "S1" in self.branch:
+                x = self.s1_encoder(x_in["S1"])
+            elif "S2" in self.branch:
+                x = self.s2_encoder(x_in["S2"])
+
+        elif len(self.branch)==2:
+            if "Spot" not in self.branch:
+                x1 = self.s1_encoder(x_in["S1"])
+                x2 = self.s2_encoder(x_in["S2"])
+                x = torch.add(x1,x2)
+            if "S1" not in self.branch:
+                x1 = self.spot_encoder(x_in["PAN"],x_in["MS"])
+                x2 = self.s2_encoder(x_in["S2"])
+                x = torch.add(x1,x2)
+            if "S2" not in self.branch:
+                x1 = self.spot_encoder(x_in["PAN"],x_in["MS"])
+                x2 = self.s1_encoder(x_in["S1"])
+                x = torch.add(x1,x2)
+
+        elif len(self.branch)==3:
+            x1 = self.s1_encoder(x_in["S1"])
+            x2 = self.s2_encoder(x_in["S2"])
+            x3 = self.spot_encoder(x_in["PAN"],x_in["MS"])
+            x = torch.add(torch.add(x1,x2),x3)
+        else:
+            print("problem of input more than four sources are in input!")
+            breakpoint()
+        
         x = self.dense1(x)
         x = self.dense2(x)
         return x

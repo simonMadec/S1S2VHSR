@@ -1,6 +1,5 @@
 
 import torch
-from src.spot import weight_init
 import numpy as np
 import glob
 from pathlib import Path
