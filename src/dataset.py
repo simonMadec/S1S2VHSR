@@ -4,9 +4,27 @@ import pandas as pd
 # from sklearn.model_selection import train_test_split
 import logging
 from torch.utils.data import Dataset as BaseDataset
+from torch.utils.data.sampler import WeightedRandomSampler
 import numpy as np
 loggerupds = logging.getLogger('update')
 from pathlib import Path
+
+def sampler_create(root: str,dataset: str,split):
+    #Let there be 9 samples and 1 sample in class 0 and 1 respectively
+    y_numpy_dir = Path(root) / "Ground_truth" / dataset /  f"Ground_truth_{dataset}_split_{split}.npy"
+    Y_train = np.load(y_numpy_dir)
+    num_target = len(np.unique(Y_train[:,1]))
+
+    class_counts = [np.sum((Y_train[:,1]==x)) for x in range(num_target)]
+    num_samples = Y_train.shape[0]
+    
+    labels = Y_train[:,1].tolist()
+
+    class_weights = [num_samples/class_counts[i] for i in range(len(class_counts))]
+    class_weights = [np.sqrt(x) for x in class_weights]
+    weights = [class_weights[labels[i]] for i in range(int(num_samples))]
+    sampler = WeightedRandomSampler(torch.DoubleTensor(weights), int(num_samples))
+    return sampler
 
 class DatasetS1S2VHSR(BaseDataset):
     """Read numpy
@@ -25,7 +43,7 @@ class DatasetS1S2VHSR(BaseDataset):
         if len([item for item in sensor if item not in ["Spot","S2","S1"]])>0:
             print(f"Wrong sensor elements {sensor}")
             breakpoint()
-        
+
         y_numpy_dir = Path(root) / "Ground_truth" / dataset /  f"Ground_truth_{dataset}_split_{split}.npy"
         self.Y_train = np.load(y_numpy_dir)
         self.size = self.Y_train.shape[0]
@@ -49,22 +67,19 @@ class DatasetS1S2VHSR(BaseDataset):
                 self.X_train_ms = X_train_ms[:,:,:,:,0].transpose(0,3,1,2)
             else:
                 self.X_train_ms = X_train_ms[:,:,:,0,:].transpose(0,3,1,2)
+            
     def __getitem__(self, i):
         
         dicts = {}
+        
         dicts["Target"] = torch.as_tensor(np.array(self.Y_train[i,1]).astype('float32'))
-        # dicts["Target"] = torch.from_numpy(self.Y_train[i,1])
         for x in self.sensor:
             if x == "S1":
-                # dicts[x] = torch.from_numpy(self.X_train_S1[i,:,:])
                 dicts[x] = torch.as_tensor(np.array(self.X_train_S1[i,:,:]).astype('float32'))
             elif x == "S2":
-                # dicts[x] = torch.from_numpy(self.X_train_S2[:,:,i]) 
                 dicts[x] = torch.as_tensor(np.array(self.X_train_S2[:,:,i]).astype('float32'))
             elif x == "Spot":
-                # dicts["PAN"] = torch.from_numpy(self.X_train_pan[i,:,:])
                 dicts["PAN"] = torch.as_tensor(np.array(self.X_train_pan[i,:,:]).astype('float32'))
-                # dicts["MS"] = torch.from_numpy(self.X_train_ms[i,:,:])
                 dicts["MS"] = torch.as_tensor(np.array(self.X_train_ms[i,:,:]).astype('float32'))
         return dicts
 

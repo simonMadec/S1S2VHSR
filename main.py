@@ -1,36 +1,36 @@
 import torch
 
 from torch.utils.data import DataLoader
-from src.dataset import DatasetS1S2VHSR
+from src.dataset import DatasetS1S2VHSR, sampler_create
 from src.MS import Model_MultiSource # import the model
 from src.util_train import train
 import os 
 from util_study import merge_csv
 
-os.environ["CUDA_VISIBLE_DEVICES"] ="3"
+os.environ["CUDA_VISIBLE_DEVICES"] ="2"
 
- # attention changer le nombre de classes et test -1 dans validate all
+# attention changer le nombre de classes et test -1 dans validate all
 site = "data_reunion"
-method = "0612"
+method = "1712NoSample"
 
-root = f"/home/simon/DATA/land_use_classification/{site}"
+# for sensor in [["S1"],["S2"],["Spot"],["S1","S2"],["S2","Spot"],["S1","S2","Spot"]]:
+for site in ["data_reunion","data_dordogne"]:
+    root = f"/home/simon/DATA/land_use_classification/{site}"
+    for sensor in [["S1","S2","Spot"]]:
+        for split in range(0,5):
+            print(f"split {split}")
 
-# for sensor in [["S2","Spot"]]:
-for sensor in [["S1","S2","Spot"]]:
-    for split in range(4,5):
-        print(f"split {split}")
+            train_dataset = DatasetS1S2VHSR(root=root,dataset="Training",sensor=sensor,split=split)
+            sampler = sampler_create(root=root,dataset="Training",split=split)
+            train_loader = DataLoader(train_dataset, batch_size=256,pin_memory=True,num_workers=1) #shuffle=True sampler=sampler
+            test_dataset = DatasetS1S2VHSR(root=root,dataset="Validation",sensor=sensor,split=split)
+            valid_loader = DataLoader(test_dataset, batch_size=256,pin_memory=True, num_workers=1) #too load sur GPU (pin_memory=True)
 
-        train_dataset = DatasetS1S2VHSR(root=root,dataset="Training",sensor=sensor,split=split)
-        train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True,pin_memory=False, num_workers=1)
+            test_dataset = DatasetS1S2VHSR(root=root,dataset="Test",sensor=sensor,split=split)
+            test_loader = DataLoader(test_dataset, batch_size=256,pin_memory=True, num_workers=1)
 
-        test_dataset = DatasetS1S2VHSR(root=root,dataset="Validation",sensor=sensor,split=split)
-        valid_loader = DataLoader(test_dataset, batch_size=256, shuffle=True,pin_memory=False, num_workers=1) #too load sur GPU (pin_memory=True)
+            csv_name = f"{method}_{'-'.join(sensor)}_site-{site}_result_split-{split}.csv"
+            
+            train(Model_MultiSource(n_classes=train_dataset.numtarget(),branch=sensor),train_loader,valid_loader,test_loader,save_model=True,num_epochs=200,csv_name=csv_name)
 
-        test_dataset = DatasetS1S2VHSR(root=root,dataset="Test",sensor=sensor,split=split)
-        test_loader = DataLoader(test_dataset, batch_size=256, shuffle=True,pin_memory=False, num_workers=1)
-
-        csv_name = f"{method}_{'-'.join(sensor)}_site-{site}_result_split-{split}.csv"
-        
-        train(Model_MultiSource(n_classes=train_dataset.numtarget(),branch=sensor),train_loader,valid_loader,test_loader,num_epochs=200,csv_name=csv_name)
-
-    merge_csv(csv_name)
+        merge_csv(csv_name)

@@ -13,74 +13,15 @@ import torch.nn as nn
 from time import time
 from tqdm import tqdm
 import pandas as pd
+
 from sklearn.metrics import f1_score
 from sklearn.metrics import cohen_kappa_score as kappa
+from sklearn.metrics import confusion_matrix
+from .util_metric import validate, validateALL
 
+import seaborn as sns
 torch.manual_seed(20)
 np.random.seed(20)
-
-def validateALL(net, loader):
-    # compute all metrics
-    y_pred = []
-    y_true = []
-    net = net.cuda()
-    net.eval()
-    with torch.no_grad():
-        acc = []
-        f1 = []
-        ka = []
-        for i, sample in enumerate(loader):
-            for x in sample:
-                sample[x] = sample[x].cuda()
-                
-            outputs_is = net(sample)
-            # generate targets
-            correct_pred = (outputs_is.argmax(-1) == sample["Target"]).float()
-            val = correct_pred.sum() / len(correct_pred)
-
-            f1.append(f1_score(outputs_is.argmax(-1).cpu().numpy(), sample["Target"].cpu().numpy(),average='micro'))
-            ka.append(kappa(outputs_is.argmax(-1).cpu().numpy(), sample["Target"].cpu().numpy()))
-            acc.append(val.cpu().numpy())
-             #faire une accuracy
-    return np.mean(np.asarray(acc)),np.mean(np.asarray(ka)),np.mean(np.asarray(f1))
-
-
-def validate(net, loader,perclasse_acc = False,list_class=['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', \
-            'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil','Relief shadow','Water','Urbanized areas']):
-    #compute just accuracy
-    y_pred = []
-    y_true = []
-    net = net.cuda()
-    net.eval()
-    with torch.no_grad():
-        acc = []
-        acc_classe = {k:[] for k in list_class}
-
-        for i, sample in enumerate(loader):
-            for x in sample:
-                sample[x] = sample[x].cuda()
-                
-            outputs_is = net(sample)
-            correct_pred = (outputs_is.argmax(-1) == sample["Target"]).float()
-
-            if perclasse_acc == True:
-                Target =Target.float().cpu().numpy()
-                Pred = outputs_is.argmax(-1).float().cpu().numpy()
-
-                for i,classe in enumerate(np.unique(Target)):
-                    acc_classe[list_class[i]].append(np.sum((Pred== Target) & (Target == classe)) / np.sum(Target == classe))
-
-            val = correct_pred.sum() / len(correct_pred)
-            acc.append(val.cpu().numpy())
-             #faire une accuracy
-
-    if perclasse_acc == True:
-        for key, value in acc_classe.items():
-            acc_classe[key]= int(np.mean(value)*100)
-        
-        return np.mean(np.asarray(acc)), acc_classe
-    else: 
-         return np.mean(np.asarray(acc)), None
 
 
 def train(net,
@@ -127,8 +68,12 @@ def train(net,
                 optimizer.zero_grad()
 
                 for x in sample:
-                    sample[x] = sample[x].cuda()
-                
+                    sample[x] = sample[x].to('cuda:0', non_blocking=True)
+                    #sample[x] = sample[x].cuda()
+
+                # print(len(np.unique(sample['Target'].cpu())))
+                # print([np.sum(sample['Target'].cpu().numpy()==x) for x in np.unique(sample['Target'].cpu()).tolist()])
+
                 outputs_is = net(sample)
                 loss = loss_function(outputs_is,sample["Target"].long()) # ! source d'erreur
                 
@@ -148,8 +93,18 @@ def train(net,
                     # compute accuracy and save models
                     if save_model == True:
                         torch.save(net.state_dict(), model_file)
-                    test_acc,test_kaa,test_f1 = validateALL(net, test_loader)
+                    test_acc, y_true, y_pred = validateALL(net, test_loader)
+                    
+                    plt.close()
+                    x_axis_labels = ['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', 
+                                    'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil',
+                                    'Relief shadow','Water','Urbanized areas']
 
+                    cc = confusion_matrix(y_true,y_pred)/np.sum(confusion_matrix(y_true,y_pred),axis=1,keepdims=True)
+                    fi = sns.heatmap(cc, annot=True,fmt=".2f",cbar=False,xticklabels=x_axis_labels, yticklabels=x_axis_labels)
+                    fi.set_title(f"{Path(csv_name).stem}_epoch-{e+1}")
+                    fig  = fi.get_figure()
+                    fig.savefig(str( Path("result") / "figure" / f"{Path(csv_name).stem}.png"),bbox_inches = 'tight')
                 count=0
             else:
                 #for early stopping
@@ -183,7 +138,7 @@ def train(net,
         df_valid_classe.to_csv(path_or_buf="result/training/perClasse-valid_" + csv_name,index=False)
 
     df2 = pd.DataFrame(columns=["test_acc", "test_kaa", "test_f1"])
-    new_row = {"test_acc":test_acc, "test_kaa":test_kaa, "test_f1":test_f1}
+    new_row = {"test_acc":test_acc, "test_kaa":kappa(y_true,y_pred), "test_f1":f1_score(y_true,y_pred,average='weighted')}
     df2 = df2.append(new_row, ignore_index=True)
     df2.to_csv(path_or_buf="test_" + csv_name,index=False)
 
