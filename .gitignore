@@ -1,6 +1,13 @@
 results
+results
 *png
 *.csv
 *.png
 *.pth
 pth
+*tif
+*.tif
+*txt
+*.txt
+*npy
+*.npy
