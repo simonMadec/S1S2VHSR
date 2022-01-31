@@ -28,7 +28,7 @@ def sampler_create(root: str,dataset: str,split):
 
 class DatasetS1S2VHSR(BaseDataset):
     """Read numpy
-    .. can be used for augmentation ..
+        Used for training ..
     """
     def __init__(
             self,
@@ -63,15 +63,14 @@ class DatasetS1S2VHSR(BaseDataset):
             X_train_pan = np.load(Path(root) / "Spot-P" / dataset /  f"Spot-P_{dataset}_split_{split}.npy")
             self.X_train_pan = X_train_pan[:,:,:,0].transpose(0,3,1,2)
             X_train_ms = np.load(Path(root) / "Spot-MS" / dataset /  f"Spot-MS_{dataset}_split_{split}.npy")
+
             if X_train_ms.shape[3]==4:
                 self.X_train_ms = X_train_ms[:,:,:,:,0].transpose(0,3,1,2)
             else:
                 self.X_train_ms = X_train_ms[:,:,:,0,:].transpose(0,3,1,2)
             
     def __getitem__(self, i):
-        
         dicts = {}
-        
         dicts["Target"] = torch.as_tensor(np.array(self.Y_train[i,1]).astype('float32'))
         for x in self.sensor:
             if x == "S1":

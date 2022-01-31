@@ -109,63 +109,97 @@ class CNN1D_Encoder(nn.Module): #s2
         x = self.act(x)
         x=self.block4(x) # [256, 256, 6]
         x = self.act(x)
-        x=self.avg(x) # [256, 256, 6] todo normal ?
+        x=self.avg(x) # [256, 256, 6] 
         x=torch.squeeze(x)  # [256, 256, 1]
         return x #[256, 256]
 
 class Model_MultiSource(nn.Module):
-    def __init__(self,n_classes,branch,drop=0.4,n_filters=128,num_units=512):
+    def __init__(self,n_classes,sensor,drop=0.4,n_filters=128,num_units=512,auxloss=False):
         super().__init__()
-        self.branch = branch
-        if "Spot" in branch:
+        self.sensor = sensor
+        self.aux = auxloss
+        if "Spot" in sensor:
             self.spot_encoder = SpotEncoder(n_filters=n_filters,drop=drop)
-        if "S1" in branch:
+        if "S1" in sensor:
             self.s1_encoder = CNN2D_Encoder(n_filters = n_filters, drop = drop)
-        if "S2" in branch:
+        if "S2" in sensor:
             self.s2_encoder = CNN1D_Encoder(n_filters = n_filters, drop = drop)
 
-        if len(branch)>1:
-            print("Carefull fusion is on development")
+        if len(sensor)>1:
+            print("fusion is on development")
 
         self.dense1 = nn.Linear(in_features = n_filters*2, out_features = num_units) 
         self.dense2 = nn.Linear(in_features = num_units, out_features = n_classes) 
+        self.denseaux = nn.Linear(in_features = n_filters*2, out_features = num_units) 
 
     def forward(self,x_in):
-        if len(self.branch)==1:
-            if "Spot" in self.branch:
+        output = {}
+        if len(self.sensor)==1:
+            if "Spot" in self.sensor:
                 x = self.spot_encoder(x_in["PAN"],x_in["MS"])
-            elif "S1" in self.branch:
+            elif "S1" in self.sensor:
                 x = self.s1_encoder(x_in["S1"])
-            elif "S2" in self.branch:
+            elif "S2" in self.sensor:
                 x = self.s2_encoder(x_in["S2"])
+            x = self.dense1(x)
+            x = self.dense2(x)
+            return x
 
-        elif len(self.branch)==2:
-            if "Spot" not in self.branch:
+        elif len(self.sensor)==2:
+            if "Spot" not in self.sensor:
                 x1 = self.s1_encoder(x_in["S1"])
                 x2 = self.s2_encoder(x_in["S2"])
                 x = torch.add(x1,x2)
-            if "S1" not in self.branch:
+                output["S1"] = self.denseaux(x1)
+                output["S2"] = self.denseaux(x2)
+
+            if "S1" not in self.sensor:
                 x1 = self.spot_encoder(x_in["PAN"],x_in["MS"])
                 x2 = self.s2_encoder(x_in["S2"])
                 x = torch.add(x1,x2)
-            if "S2" not in self.branch:
-                x1 = self.spot_encoder(x_in["PAN"],x_in["MS"])
-                x2 = self.s1_encoder(x_in["S1"])
-                x = torch.add(x1,x2)
+                output["Spot"] = self.denseaux(x1)
+                output["S2"] = self.denseaux(x2)
 
-        elif len(self.branch)==3:
+            if "S2" not in self.sensor:
+                x1 = self.s1_encoder(x_in["S1"])
+                x2 = self.spot_encoder(x_in["PAN"],x_in["MS"])
+                x = torch.add(x1,x2)
+                output["S1"] = self.denseaux(x1)
+                output["Spot"] = self.denseaux(x2)
+
+            x = self.dense1(x)
+            x = self.dense2(x)
+            output["fusion"] = x
+
+            if self.aux==False: #maybe remove this
+                return x
+            else:
+                # return x,self.denseaux(x1),self.denseaux(x2)
+                return output
+
+
+        elif len(self.sensor)==3:
             x1 = self.s1_encoder(x_in["S1"])
             x2 = self.s2_encoder(x_in["S2"])
             x3 = self.spot_encoder(x_in["PAN"],x_in["MS"])
             x = torch.add(torch.add(x1,x2),x3)
+            x = self.dense1(x)
+            x = self.dense2(x)
+
+            if self.aux==False:
+                return x
+            else:
+                output["fusion"] = x 
+                output["S1"] = self.denseaux(x1) 
+                output["S2"] = self.denseaux(x2) 
+                output["Spot"] = self.denseaux(x3)
+                # return x,self.denseaux(x1),self.denseaux(x2),self.denseaux(x3)
+                return output
         else:
             print("problem of input more than four sources are in input!")
             breakpoint()
         
-        x = self.dense1(x)
-        x = self.dense2(x)
-        return x
-    
+
     # def predict(self,x_pan,x_ms):
     #     """ Inference mode call forward with torch.no_grad() """
     #     if self.training:
@@ -173,7 +207,6 @@ class Model_MultiSource(nn.Module):
     #     with torch.no_grad():
     #         x = self.forward(x)
     #     return x
-
 
 def weight_init(m):
     if isinstance(m, nn.Conv2d):

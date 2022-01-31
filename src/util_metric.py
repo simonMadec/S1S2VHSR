@@ -21,7 +21,11 @@ def validateALL(net, loader):
                 sample[x] = sample[x].cuda()
                 
             outputs_is = net(sample)
+
             # generate targets
+            if type(outputs_is) is dict: # fusion
+                 outputs_is = outputs_is["fusion"]
+
             correct_pred = (outputs_is.argmax(-1) == sample["Target"]).float()
             val = correct_pred.sum() / len(correct_pred)
 
@@ -50,6 +54,9 @@ def validate(net, loader,perclasse_acc = False,list_class=['Sugarcane', 'Pasture
                 sample[x] = sample[x].cuda()
                 
             outputs_is = net(sample)
+            # generate targets
+            if type(outputs_is) is dict: # fusion
+                 outputs_is = outputs_is["fusion"]
             correct_pred = (outputs_is.argmax(-1) == sample["Target"]).float()
 
             if perclasse_acc == True:
