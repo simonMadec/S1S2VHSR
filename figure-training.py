@@ -22,7 +22,6 @@ for cs in csv:
     plt.savefig(f"spotAllClasses.png")
     breakpoint()
         
-
 pathCSV = "results/S2"
 
 for i in glob.glob( pathCSV + "/result*" ):

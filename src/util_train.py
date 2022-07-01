@@ -13,7 +13,6 @@ import torch.nn as nn
 from time import time
 from tqdm import tqdm
 import pandas as pd
-
 from sklearn.metrics import f1_score
 from sklearn.metrics import cohen_kappa_score as kappa
 from sklearn.metrics import confusion_matrix
@@ -32,12 +31,13 @@ def train(net,
     save_model=False,
     batch_size=256):
     
-    if num_epochs<2:
-        print(f"wrong number epochs = {num_epochs} please put at least 2")
-    try: 
-        int(Path(csv_name).stem.split("_split-")[1])
-    except ValueError:
-        print("Warning wrong csv name")
+    if num_epochs<1:
+        print(f"wrong number epochs = {num_epochs} please put at least 1")
+        breakpoint()
+    # try: 
+    #     int(Path(csv_name).stem.split("_split-")[1])
+    # except ValueError:
+    #     print("Warning wrong csv name")
 
     print(f"Training for :  {Path(csv_name).stem}")
     start = time()
@@ -51,37 +51,22 @@ def train(net,
 
     with tqdm(range(num_epochs), unit="epoch",leave=True) as tqdmEpoch:
         for e in tqdmEpoch:
-
-            for i, sample in enumerate(train_loader):
+            for i, sample in enumerate(tqdm(train_loader)):
                 # zero the parameter gradients
                 optimizer.zero_grad()
-
                 for x in sample:
                     sample[x] = sample[x].to('cuda:0', non_blocking=True)
                 outputs_is = net(sample)
-
+                
                 if type(outputs_is) is dict: # fusion
-                # if len(outputs_is)==4: #todo better do a dictionnary here only if we want to do Aux loss
                     loss = loss_function(outputs_is["fusion"],sample["Target"].long()) # ! source d'erreur
-                    for s_ in outputs_is.keys():
-                        if s_ != "fusion":
-                            loss += 0.2*loss_function(outputs_is[s_],sample["Target"].long())
-                            loss += 0.2*loss_function(outputs_is[s_],outputs_is["fusion"].argmax(-1))
-
-                    # loss_s1 = loss_function(outputs_is[1],sample["Target"].long())
-                    # loss_s2 = loss_function(outputs_is[2],sample["Target"].long())
-                    # loss_spot = loss_function(outputs_is[3],sample["Target"].long())
-
-                    # loss_distill_s1 = loss_function(outputs_is[1],outputs_is[0].argmax(-1))
-                    # loss_distill_s2 = loss_function(outputs_is[2],outputs_is[0].argmax(-1))
-                    # loss_distill_spot = loss_function(outputs_is[3],outputs_is[0].argmax(-1))
-
-                    # loss = loss_fusion + (e/20)*loss_distill_s1 + (e/20)**loss_distill_s2 + (e/20)*loss_distill_spot + 0.2*loss_s1 + 0.2*loss_s2 + 0.2*loss_spot
-
+                    # for s_ in outputs_is.keys():
+                    #     if s_ != "fusion":
+                    #         loss += 0.2*loss_function(outputs_is[s_],sample["Target"].long())
+                    #         loss += 0.2*loss_function(outputs_is[s_],outputs_is["fusion"].argmax(-1))
                 else:
                     loss = loss_function(outputs_is,sample["Target"].long())
                 
-                # loss = loss_function(outputs_is,Target.long())
                 loss.backward() # compute the total loss
                 optimizer.step() # make the updates for each parameter
                 
@@ -90,17 +75,14 @@ def train(net,
             val_acc, val_acc_classe = validate(net, valid_loader)
             train_acc, train_acc_classe = validate(net, train_loader)
 
-            if val_acc > best_acc: # minimum 1 epoch to save best model.. do it with val loss #todo
-                
+            if val_acc > best_acc: # minimum 0 epoch to save best model.. 
                 best_acc = val_acc
-                if e > 0:
+                if e > -1:
                     # compute accuracy and save models
+                    test_acc, y_true, y_pred = validateALL(net, test_loader)
                     if save_model == True:
                         torch.save(net.state_dict(), model_file)
-                    test_acc, y_true, y_pred = validateALL(net, test_loader)
                     
-                    plt.close()
-
                     if len(np.unique(y_pred))>9:
                         x_axis_labels = ['Sugarcane', 'Pasture and fodder', 'Market gardening','Grenhouse and shaded crops', 
                                         'Orchards','Wooded areas','Moor and Savannah','Rocks and natural bare soil',
@@ -116,11 +98,9 @@ def train(net,
                     # fig.savefig(str( Path("result") / "figure" / f"{Path(csv_name).stem}.png"),bbox_inches = 'tight')
                 count=0
             else:
-                #for early stopping
                 count=count+1
                 if count>10:
                     break
-
             new_row = {"epoch":e+1, "train_acc":train_acc, "val_acc":val_acc, "time (s)":end - start}
             df = df.append(new_row, ignore_index=True)
 
@@ -139,14 +119,3 @@ def train(net,
     new_row = {"test_acc":test_acc, "test_kaa":kappa(y_true,y_pred), "test_f1":f1_score(y_true,y_pred,average='weighted')}
     df2 = df2.append(new_row, ignore_index=True)
     df2.to_csv(path_or_buf="result/temp/split_metric_result/test_" + csv_name,index=False)
-
-
-
-
-
-
-
-
-
-
-

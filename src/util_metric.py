@@ -1,8 +1,7 @@
-
-
+from turtle import color
 import torch
 import numpy as np
-
+import matplotlib.pyplot as plt 
 
 def validateALL(net, loader):
     # compute all metrics
@@ -17,9 +16,13 @@ def validateALL(net, loader):
         f1 = []
         ka = []
         for i, sample in enumerate(loader):
+            # breakpoint()
+            # col = {0: 'red', 1: 'blue' , 2: 'black', 3: 'yellow', 4: 'green', 5: 'orange', 6: 'grey', 7: 'brown'}
+            # tlabel= sample['Target'].numpy()[0].astype('uint8')
+            # plt.plot(range(62), sample['S1'][0, :, 4,4], label=tlabel, color=col[tlabel])
             for x in sample:
-                sample[x] = sample[x].cuda()
-                
+                sample[x] = sample[x].cuda()           
+            
             outputs_is = net(sample)
 
             # generate targets
@@ -36,6 +39,7 @@ def validateALL(net, loader):
             y_pred = np.concatenate((y_pred, outputs_is.argmax(-1).cpu().numpy() ), axis=0)
             y_true = np.concatenate((y_true, sample["Target"].cpu().numpy() ), axis=0)
              #faire une accuracy  
+
     return np.mean(np.asarray(acc)), y_true, y_pred
 
 
@@ -60,6 +64,7 @@ def validate(net, loader,perclasse_acc = False,list_class=['Sugarcane', 'Pasture
             correct_pred = (outputs_is.argmax(-1) == sample["Target"]).float()
 
             if perclasse_acc == True:
+                #debug not working now
                 Target =Target.float().cpu().numpy()
                 Pred = outputs_is.argmax(-1).float().cpu().numpy()
 

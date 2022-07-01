@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "util_inference",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/simon/Project/S1S2VHSR/util_inference_v2.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "test",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/simon/Project/S1S2VHSR/src/debug_inference_s1_.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "train",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/simon/Project/S1S2VHSR/main.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}

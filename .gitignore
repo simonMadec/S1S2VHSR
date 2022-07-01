@@ -1,5 +1,5 @@
 results
-results
+result
 *png
 *.csv
 *.png
@@ -11,3 +11,4 @@ pth
 *.txt
 *npy
 *.npy
+log_dir
