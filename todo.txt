@@ -1,2 +1,1 @@
-# data loader pour tout les sensors et load une fois et si pas d'une sources ..
-# evaluate input and change classe label ..
+# 
