@@ -6,7 +6,8 @@ import seaborn as sns
 import os
 
 def merge_csv(csv_name):
-    list_csv = glob.glob("result/temp/split_metric_result/test_" + csv_name.split("_result")[0] +"*")
+    
+    list_csv = glob.glob("result/temp/split_metric_result/test_" + csv_name.split("_split")[0] +"*")
     if len(list_csv) > 0:
         dfs = []
         for csv in list_csv:
@@ -15,7 +16,7 @@ def merge_csv(csv_name):
                 print(f"delte {csv}")
                 
                 if "_split-" in Path(csv).stem:
-                    df["split"] = int(Path(csv).stem.split("_split-")[1])
+                    df["split"] = int(Path(csv).stem.split("_split-")[1].split("_")[0])
                 Path(csv).unlink()
                 df = dfs.append(df) 
         all_split = pd.concat(dfs, ignore_index=True)
