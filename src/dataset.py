@@ -22,11 +22,11 @@ class DatasetS1S2VHSRbig(BaseDataset):
             dataset: str,
             sensor: list, #todo
             num_target = None,
-            path_size = 256,
+            split = 0,
     ):
 
         #déclarer ici
-        # tread qui load et convertu en tensor torch (miner buffer)
+        # tread qui load et convertit en tensor torch (miner buffer)
         #consumer buffer recupere ce qu'il y a dans le miner buffer
         if dataset not in ["Training","Validation","Test"]:
             print(f"Error training should be Training Validation Test not {dataset}")
@@ -37,11 +37,12 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         self.root = root
         self.dataset = dataset
-        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset /  f"Ground_truth_{dataset}_*.npy"))
+        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset / f"{split}" /  f"Ground_truth_{dataset}_*.npy"))
         self.sensor = sensor
+
         # change the k number for more samples ...
-        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=500)
-        self.path_size = path_size
+        self.list_y_numpy_dir = list_y_numpy_dir
+        # self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=500)
 
         if num_target is None:
             if "reunion" in Path(root).stem:

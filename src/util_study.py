@@ -28,7 +28,9 @@ def merge_csv(csv_name):
 
 def merge_result(csv_name):
     print("to work on it")
-    
+
+    Path("result/temp/split_confusion_result").mkdir(parents=True, exist_ok=True)
+
     list_npy = glob.glob("result/temp/split_confusion_result/Confusion_" + csv_name.split("_result")[0] +"*")
     print(f"found {len(list_npy)} nunmpy file for confusion ")
     if len(list_npy) ==0:
@@ -52,6 +54,8 @@ def merge_result(csv_name):
 
     fi = sns.heatmap(cc, annot=True,fmt=".2f",cbar=False,xticklabels=x_axis_labels, yticklabels=x_axis_labels)
     fi.set_title(f"{Path(csv_name).stem}".split("_split")[0])
+
+    Path("result/figure").mkdir(parents=True, exist_ok=True)
     s_ = str( Path("result") / "figure" / str(f"{Path(csv_name).stem}".split("_split")[0] + ".png"))
     # if os.path.isfile(s_):
     #     os.remove(s_)
