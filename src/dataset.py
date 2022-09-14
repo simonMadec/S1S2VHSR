@@ -9,7 +9,11 @@ import glob
 from bisect import bisect
 import glob
 import random
+import timeit
 
+start = timeit.timeit()
+end = timeit.timeit()
+print(end - start)
 class DatasetS1S2VHSRbig(BaseDataset):
     """Read mutiples numpy
         Used for training ..
@@ -24,6 +28,7 @@ class DatasetS1S2VHSRbig(BaseDataset):
             num_target = None,
             split = 0,
     ):
+        start = timeit.timeit()
 
         #déclarer ici
         # tread qui load et convertit en tensor torch (miner buffer)
@@ -42,7 +47,7 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         # change the k number for more samples ...
         self.list_y_numpy_dir = list_y_numpy_dir
-        # self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=500)
+        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=100)
 
         if num_target is None:
             if "reunion" in Path(root).stem:
@@ -59,7 +64,6 @@ class DatasetS1S2VHSRbig(BaseDataset):
                 print(f"reading {dataset} S1 in mmap memory")
                 dic_path["S1"]= [xx.replace("Ground_truth","Sentinel-1") for xx in self.list_y_numpy_dir]
                 self.data_memmaps_S1 = [np.load(path, mmap_mode='r') for path in dic_path["S1"]]
-                print(f"converting {dataset} S1 mmap in torch tensor")
 
             if x == "S2":
                 print(f"reading {dataset} S2 in mmap memory")
@@ -85,6 +89,9 @@ class DatasetS1S2VHSRbig(BaseDataset):
             self.start_indices[index] = self.data_count
             self.data_count += memmap.shape[0]
 
+        end = timeit.timeit()
+        print(f"elapsed time is {end - start}")
+
 
     def __getitem__(self, index):
         # https://gitlab.irstea.fr/remi.cresson/otbtf/-/blob/develop/otbtf/dataset.py
@@ -98,13 +105,13 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         for x in self.sensor:
             if x == "S1":
-                dicts[x] = torch.as_tensor(np.array(self.data_memmaps_S1[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)).astype('float32'))
+                dicts[x] = torch.as_tensor(np.array(self.data_memmaps_S1[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)).astype('float32'))
             elif x == "S2":
-                sample_before_reshape = np.array(self.data_memmaps_S2[memmap_index][index_in_memmap, :, :, :][:,self.s2_center,self.s2_center,:])
-                dicts[x] = torch.as_tensor(sample_before_reshape.reshape(sample_before_reshape.shape[0],int(sample_before_reshape.shape[1]/6),6).transpose(0,-1,1).astype('float32'))
+                sample_before_reshape = np.array(self.data_memmaps_S2[memmap_index][index_in_memmap, :, :, :][self.s2_center,self.s2_center,:])
+                dicts[x] = torch.as_tensor(sample_before_reshape.reshape(int(sample_before_reshape.shape[0]/6),6).transpose(1,0).astype('float32'))
             elif x == "Spot":
-                dicts["PAN"] = torch.as_tensor(np.array(self.data_memmaps_PAN[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)[:,:,:-1,:-1]).astype('float32'))
-                dicts["MS"] = torch.as_tensor(np.array(self.data_memmaps_MS[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)[:,:,:-1,:-1]).astype('float32'))
+                dicts["PAN"] = torch.as_tensor(np.array(self.data_memmaps_PAN[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1]).astype('float32'))
+                dicts["MS"] = torch.as_tensor(np.array(self.data_memmaps_MS[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1]).astype('float32'))
 
         if target[1]==-1:
             dicts["Target"] = torch.as_tensor(np.array(0))  
