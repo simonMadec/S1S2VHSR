@@ -101,7 +101,7 @@ class DatasetS1S2VHSRbig(BaseDataset):
                 dicts[x] = torch.as_tensor(np.array(self.data_memmaps_S1[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)).astype('float32'))
             elif x == "S2":
                 sample_before_reshape = np.array(self.data_memmaps_S2[memmap_index][index_in_memmap, :, :, :][:,self.s2_center,self.s2_center,:])
-                dicts[x] = torch.as_tensor(sample_before_reshape.reshape(sample_before_reshape.shape[0],int(sample_before_reshape.shape[1]/6),6).transpose(0,-1,1)).astype('float32')
+                dicts[x] = torch.as_tensor(sample_before_reshape.reshape(sample_before_reshape.shape[0],int(sample_before_reshape.shape[1]/6),6).transpose(0,-1,1).astype('float32'))
             elif x == "Spot":
                 dicts["PAN"] = torch.as_tensor(np.array(self.data_memmaps_PAN[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)[:,:,:-1,:-1]).astype('float32'))
                 dicts["MS"] = torch.as_tensor(np.array(self.data_memmaps_MS[memmap_index][index_in_memmap, :, :, :].transpose(0,-1,1,2)[:,:,:-1,:-1]).astype('float32'))
