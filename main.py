@@ -17,9 +17,10 @@ rootdataset = "/home/simon/DATA/land_use_classification/data"
 method = "dd2"
 batch_size = 256
 cc =0
-for site in ["data_reunion_origin_10m"]:
+
+for site in ["data_dordogne_origin_out150cmGSD_v2"]:
     root = Path(rootdataset) / site
-    for sensor in [["S1","S2","Spot"]]:
+    for sensor in [["S1"]]:#["S1","S2","Spot"]
         for split in range(0,5):
             cc=cc+1
             csv_name = f"{method}_{'-'.join(sensor)}_site-{site}__split-{split}_result.csv"

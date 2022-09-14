@@ -37,7 +37,7 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         self.root = root
         self.dataset = dataset
-        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset / f"{split}" /  f"Ground_truth_{dataset}_*.npy"))
+        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset  /  f"Ground_truth_{dataset}_*.npy"))
         self.sensor = sensor
 
         # change the k number for more samples ...

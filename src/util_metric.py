@@ -32,7 +32,9 @@ def validateALL(net, loader):
             #f1.append(f1_score(outputs_is.argmax(-1).cpu().numpy(), sample["Target"].cpu().numpy(),average='micro'))
             #ka.append(kappa(outputs_is.argmax(-1).cpu().numpy(), sample["Target"].cpu().numpy()))
             acc.append(val.cpu().numpy())
-
+            yel = outputs_is.argmax(-1).cpu().numpy() 
+            if len(yel.shape)==0:
+                yel = yel.expeand_dims(axis=0)
             y_pred = np.concatenate((y_pred, outputs_is.argmax(-1).cpu().numpy() ), axis=0)
             y_true = np.concatenate((y_true, sample["Target"].cpu().numpy() ), axis=0)
 
