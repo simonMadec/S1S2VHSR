@@ -11,9 +11,7 @@ import glob
 import random
 import timeit
 
-start = timeit.timeit()
-end = timeit.timeit()
-print(end - start)
+
 class DatasetS1S2VHSRbig(BaseDataset):
     """Read mutiples numpy
         Used for training ..
@@ -47,7 +45,7 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         # change the k number for more samples ...
         self.list_y_numpy_dir = list_y_numpy_dir
-        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=100)
+        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=500)
 
         if num_target is None:
             if "reunion" in Path(root).stem:
