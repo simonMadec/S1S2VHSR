@@ -11,6 +11,8 @@ import glob
 import random
 import timeit
 
+from sys import getsizeof
+
 
 class DatasetS1S2VHSRbig(BaseDataset):
     """Read mutiples numpy
@@ -26,7 +28,6 @@ class DatasetS1S2VHSRbig(BaseDataset):
             num_target = None,
             split = 0,
     ):
-        start = timeit.timeit()
 
         #déclarer ici
         # tread qui load et convertit en tensor torch (miner buffer)
@@ -40,13 +41,13 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         self.root = root
         self.dataset = dataset
-        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset  /  f"Ground_truth_{dataset}_*.npy"))
+        list_y_numpy_dir = glob.glob( str(Path(root) / "Ground_truth" / dataset  / f"Ground_truth_{dataset}_*.npy"))
         self.sensor = sensor
 
         # change the k number for more samples ...
         self.list_y_numpy_dir = list_y_numpy_dir
-        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=500)
-
+        self.list_y_numpy_dir = random.choices(list_y_numpy_dir, k=5000)
+        
         if num_target is None:
             if "reunion" in Path(root).stem:
                 self.num_target = 11
@@ -61,35 +62,33 @@ class DatasetS1S2VHSRbig(BaseDataset):
             if x == "S1":
                 print(f"reading {dataset} S1 in mmap memory")
                 dic_path["S1"]= [xx.replace("Ground_truth","Sentinel-1") for xx in self.list_y_numpy_dir]
-                self.data_memmaps_S1 = [np.load(path, mmap_mode='r') for path in dic_path["S1"]]
-
+                self.data_memmaps_S1 = list((np.load(path, mmap_mode='r') for path in dic_path["S1"]))
+                
             if x == "S2":
                 print(f"reading {dataset} S2 in mmap memory")
                 dic_path["S2"]= [xx.replace("Ground_truth","Sentinel-2") for xx in self.list_y_numpy_dir]
                 # dic_path["S2"]= glob.glob( str(Path(root) / "Sentinel-2" / dataset /  f"Sentinel-2_{dataset}_*.npy"))
-                self.data_memmaps_S2 = [np.load(path, mmap_mode='r') for path in dic_path["S2"]]
+                #self.data_memmaps_S2 = [np.load(path, mmap_mode='r') for path in dic_path["S2"]]
+                self.data_memmaps_S2 = list((np.load(path, mmap_mode='r') for path in dic_path["S2"]))
+                #self.s2_center = int(self.data_memmaps_S2[0].shape[1]/2)
                 self.s2_center = int(self.data_memmaps_S2[0].shape[1]/2)
-
+                
             if x == "Spot":
                 print(f"reading {dataset} Spot in mmap memory")
                 dic_path["PAN"]= [xx.replace("Ground_truth","Spot-P") for xx in self.list_y_numpy_dir]
-                self.data_memmaps_PAN = [np.load(path, mmap_mode='r') for path in dic_path["PAN"]]
+                self.data_memmaps_PAN = list((np.load(path, mmap_mode='r') for path in dic_path["PAN"]))
 
                 dic_path["MS"]= [xx.replace("Ground_truth","Spot-MS") for xx in self.list_y_numpy_dir]
-                self.data_memmaps_MS = [np.load(path, mmap_mode='r') for path in dic_path["MS"]]
+                self.data_memmaps_MS = list((np.load(path, mmap_mode='r') for path in dic_path["MS"]))
 
         print(f"reading {dataset} Ground truth in mmap memory")
-        self.target_memmaps = [np.load(path, mmap_mode='r') for path in self.list_y_numpy_dir]
+        self.target_memmaps = list((np.load(path, mmap_mode='r') for path in self.list_y_numpy_dir))
 
         self.start_indices = [0] * len(self.list_y_numpy_dir)
         self.data_count = 0
         for index, memmap in enumerate(self.target_memmaps):
             self.start_indices[index] = self.data_count
             self.data_count += memmap.shape[0]
-
-        end = timeit.timeit()
-        print(f"elapsed time is {end - start}")
-
 
     def __getitem__(self, index):
         # https://gitlab.irstea.fr/remi.cresson/otbtf/-/blob/develop/otbtf/dataset.py
@@ -103,13 +102,13 @@ class DatasetS1S2VHSRbig(BaseDataset):
 
         for x in self.sensor:
             if x == "S1":
-                dicts[x] = torch.as_tensor(np.array(self.data_memmaps_S1[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)).astype('float32'))
+                dicts[x] = torch.as_tensor(self.data_memmaps_S1[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1).astype('float32'))
             elif x == "S2":
-                sample_before_reshape = np.array(self.data_memmaps_S2[memmap_index][index_in_memmap, :, :, :][self.s2_center,self.s2_center,:])
+                sample_before_reshape = self.data_memmaps_S2[memmap_index][index_in_memmap, :, :, :][self.s2_center,self.s2_center,:]
                 dicts[x] = torch.as_tensor(sample_before_reshape.reshape(int(sample_before_reshape.shape[0]/6),6).transpose(1,0).astype('float32'))
             elif x == "Spot":
-                dicts["PAN"] = torch.as_tensor(np.array(self.data_memmaps_PAN[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1]).astype('float32'))
-                dicts["MS"] = torch.as_tensor(np.array(self.data_memmaps_MS[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1]).astype('float32'))
+                dicts["PAN"] = torch.as_tensor(self.data_memmaps_PAN[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1].astype('float32'))
+                dicts["MS"] = torch.as_tensor(self.data_memmaps_MS[memmap_index][index_in_memmap, :, :, :].transpose(-1,0,1)[:,:-1,:-1].astype('float32'))
 
         if target[1]==-1:
             dicts["Target"] = torch.as_tensor(np.array(0))  
