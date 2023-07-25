@@ -33,7 +33,7 @@ For S2 we also apply a min max normalisation for each features
 
 Size of the numpy :
 For S1,S2
-9*9*(numberOfDates*numberOfFeatures)
+9 x 9 x (numberOfDates*numberOfFeatures)
 ex : 9x9x62 sor S1 (two features and 31 dates)
 ex : 9x9x138 sor S2 (six features and 23 dates)
 
